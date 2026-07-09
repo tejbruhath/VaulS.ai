@@ -13,8 +13,11 @@ class HybridRetriever:
     
     def __init__(self):
         """Initialize retriever with all components."""
-        self.bm25 = BM25Manager()
-        self.vector_store = VectorStore()
+        from .index_manager import IndexManager
+        
+        self.index_manager = IndexManager()
+        self.bm25 = self.index_manager.get_bm25_index()
+        self.vector_store = self.index_manager.get_vector_store()
         self.embedding_service = EmbeddingService()
         self.weight_bm25 = settings.HYBRID_WEIGHT_BM25
         self.weight_vector = settings.HYBRID_WEIGHT_VECTOR
