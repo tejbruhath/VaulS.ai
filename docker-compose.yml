@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: rag_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache and message broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT_API_KEY: ""
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django API application
+  web:
+    build: .
+    command: >
+      bash -c "python manage.py migrate &&
+               python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    environment:
+      DEBUG: "True"
+      DB_HOST: postgres
+      DB_NAME: rag_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      QDRANT_URL: http://qdrant:6333
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  # Celery worker for async tasks
+  celery_worker:
+    build: .
+    command: celery -A config worker -l info
+    environment:
+      DEBUG: "False"
+      DB_HOST: postgres
+      DB_NAME: rag_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      QDRANT_URL: http://qdrant:6333
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - web
+    volumes:
+      - .:/app
+
+  # Celery beat for scheduled tasks
+  celery_beat:
+    build: .
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      DEBUG: "False"
+      DB_HOST: postgres
+      DB_NAME: rag_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      QDRANT_URL: http://qdrant:6333
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      - postgres
+      - redis
+      - web
+    volumes:
+      - .:/app
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
