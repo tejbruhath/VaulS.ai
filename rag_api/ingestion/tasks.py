@@ -145,17 +145,15 @@ def index_repository(owner: str, name: str, branch: str = 'main'):
 def rebuild_bm25_index():
     """Rebuild BM25 index from all documents in database."""
     try:
-        bm25 = BM25Manager()
+        from rag_api.retrieval.index_manager import OptimizedIndexBuilder
+        
+        builder = OptimizedIndexBuilder(batch_size=100)
         
         # Fetch all chunks
         all_chunks = Chunk.objects.all()
-        documents = [
-            (str(chunk.id), chunk.content)
-            for chunk in all_chunks
-        ]
         
-        # Build index
-        bm25.build_index(documents)
+        # Build using optimized builder
+        bm25 = builder.build_bm25_from_chunks(all_chunks)
         
         # Store index stats in database
         stats = bm25.get_index_stats()
@@ -168,8 +166,7 @@ def rebuild_bm25_index():
             }
         )
         
-        # Cache the index
-        cache.set('bm25_index', bm25, timeout=86400 * 7)  # 1 week
+        logger.info(f"BM25 index rebuilt: {stats}")
         
         return {
             'status': 'success',
@@ -178,6 +175,7 @@ def rebuild_bm25_index():
         }
     
     except Exception as e:
+        logger.error(f"BM25 rebuild failed: {str(e)}")
         return {
             'status': 'error',
             'error': str(e),
