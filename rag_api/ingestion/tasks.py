@@ -3,12 +3,16 @@ from celery import shared_task
 from django.utils import timezone
 from django.core.cache import cache
 import hashlib
+import logging
 from .github_loader import GitHubLoader
 from .chunking import SemanticChunker
+from .utils import ChunkingValidator, RepositoryIngestionValidator
 from rag_api.core.models import Repository, Document, Chunk, BM25Index
 from rag_api.retrieval.embeddings import EmbeddingService
 from rag_api.retrieval.vector_store import VectorStore
 from rag_api.retrieval.bm25_index import BM25Manager
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -66,11 +70,24 @@ def index_repository(owner: str, name: str, branch: str = 'main'):
             )
             chunks = chunker.chunk(content, file_type)
             
+            # Validate chunks
+            valid_chunks = []
+            for chunk in chunks:
+                validation = ChunkingValidator.validate_chunk(chunk.content)
+                if validation['valid']:
+                    valid_chunks.append(chunk)
+                else:
+                    logger.warning(f"Chunk validation failed for {file_path}: {validation['issues']}")
+            
+            if not valid_chunks:
+                logger.warning(f"No valid chunks found for {file_path}, skipping")
+                continue
+            
             # Create chunk records and index
             embedding_service = EmbeddingService()
             vector_store = VectorStore()
             
-            for chunk in chunks:
+            for chunk in valid_chunks:
                 # Create chunk in database
                 chunk_obj = Chunk.objects.create(
                     document=doc,
