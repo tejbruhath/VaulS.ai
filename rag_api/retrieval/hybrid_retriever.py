@@ -1,11 +1,15 @@
 """Hybrid retrieval combining BM25 and vector search."""
 from typing import List, Dict, Tuple
 import numpy as np
+import logging
 from django.conf import settings
 from .bm25_index import BM25Manager
 from .vector_store import VectorStore
 from .embeddings import EmbeddingService
+from .reranker import SemanticReranker, QueryExpander
 from rag_api.core.models import Chunk, QueryLog, QueryResult
+
+logger = logging.getLogger(__name__)
 
 
 class HybridRetriever:
@@ -19,6 +23,8 @@ class HybridRetriever:
         self.bm25 = self.index_manager.get_bm25_index()
         self.vector_store = self.index_manager.get_vector_store()
         self.embedding_service = EmbeddingService()
+        self.reranker = SemanticReranker()
+        self.query_expander = QueryExpander()
         self.weight_bm25 = settings.HYBRID_WEIGHT_BM25
         self.weight_vector = settings.HYBRID_WEIGHT_VECTOR
         self.rerank_top_k = settings.RERANK_TOP_K
@@ -137,28 +143,27 @@ class HybridRetriever:
     
     def _rerank(self, query: str, 
                candidates: List[Tuple[Chunk, Dict]]) -> List[Tuple[Chunk, Dict]]:
-        """Re-rank candidates using semantic similarity."""
+        """Re-rank candidates using semantic similarity and cross-encoder."""
         if not candidates:
             return []
         
-        # Generate query embedding
+        # First pass: semantic similarity
         query_embedding = self.embedding_service.embed_text(query)
         
-        # Generate embeddings for all candidates
         candidate_texts = [chunk.content for chunk, _ in candidates]
         candidate_embeddings = self.embedding_service.embed_batch(candidate_texts)
         
-        # Compute similarity scores
-        reranked = []
+        # Compute cosine similarity
         for (chunk, metadata), embedding in zip(candidates, candidate_embeddings):
-            # Cosine similarity
             similarity = np.dot(query_embedding, embedding) / (
                 np.linalg.norm(query_embedding) * np.linalg.norm(embedding) + 1e-10
             )
-            metadata['rerank_score'] = similarity
-            reranked.append((chunk, metadata))
+            metadata['semantic_score'] = similarity
         
-        # Sort by re-rank score
-        reranked.sort(key=lambda x: x[1]['rerank_score'], reverse=True)
+        # Second pass: cross-encoder re-ranking
+        candidates = self.reranker.rerank_with_cross_encoder(query, candidates)
         
-        return reranked
+        # Apply diversity re-ranking
+        candidates = self.reranker.diversity_rerank(candidates, diversity_factor=0.2)
+        
+        return candidates
