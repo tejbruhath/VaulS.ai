@@ -1,0 +1,32 @@
+# Python/Django files
+rag_api
+config
+manage.py
+requirements.txt
+*.pyc
+__pycache__
+.venv
+venv
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Documentation
+DEPLOYMENT.md
+README_RAG.md
+IMPLEMENTATION_SUMMARY.md
+COMPLETION_REPORT.txt
+API_DOCUMENTATION.md
+v0_plans
+
+# Development
+.git
+.gitignore
+scripts
+.env.example
+
+# Python specific
+.python-version
+setup.py
+.vscode
