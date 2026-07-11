@@ -7,7 +7,10 @@ from django.conf import settings
 class EmbeddingService:
     """Generate embeddings using Gemini."""
 
-    DIMENSION = 768  # models/text-embedding-004
+    # gemini-embedding-001 natively outputs 3072-dim vectors but supports
+    # Matryoshka truncation via output_dimensionality - 768 keeps Qdrant
+    # storage small while staying within the model's officially supported sizes.
+    DIMENSION = 768
 
     def __init__(self):
         """Initialize with Gemini API key."""
@@ -16,7 +19,9 @@ class EmbeddingService:
 
     def embed_text(self, text: str) -> List[float]:
         """Generate embedding for a single text."""
-        result = genai.embed_content(model=self.model, content=text)
+        result = genai.embed_content(
+            model=self.model, content=text, output_dimensionality=self.DIMENSION
+        )
         return result['embedding']
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
@@ -24,7 +29,9 @@ class EmbeddingService:
         if not texts:
             return []
 
-        result = genai.embed_content(model=self.model, content=texts)
+        result = genai.embed_content(
+            model=self.model, content=texts, output_dimensionality=self.DIMENSION
+        )
         return result['embedding']
 
     def get_embedding_dimension(self) -> int:
