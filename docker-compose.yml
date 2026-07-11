@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: rag_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,8 +19,6 @@ services:
   # Redis cache and message broker
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -34,8 +30,6 @@ services:
   # Qdrant vector database
   qdrant:
     image: qdrant/qdrant:latest
-    ports:
-      - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
     environment:
@@ -51,11 +45,11 @@ services:
     build: .
     command: >
       bash -c "python manage.py migrate &&
-               python manage.py runserver 0.0.0.0:8000"
-    ports:
-      - "8000:8000"
+               gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
     environment:
-      DEBUG: "True"
+      DEBUG: "False"
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DB_HOST: postgres
       DB_NAME: rag_db
       DB_USER: postgres
@@ -64,7 +58,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       QDRANT_URL: http://qdrant:6333
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     depends_on:
       postgres:
@@ -76,12 +70,13 @@ services:
     volumes:
       - .:/app
 
-  # Celery worker for async tasks
+  # Celery worker for async indexing tasks
   celery_worker:
     build: .
     command: celery -A config worker -l info
     environment:
       DEBUG: "False"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DB_HOST: postgres
       DB_NAME: rag_db
       DB_USER: postgres
@@ -90,7 +85,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       QDRANT_URL: http://qdrant:6333
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     depends_on:
       - postgres
@@ -100,29 +95,24 @@ services:
     volumes:
       - .:/app
 
-  # Celery beat for scheduled tasks
-  celery_beat:
-    build: .
-    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+  # Reverse proxy / automatic HTTPS
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
     environment:
-      DEBUG: "False"
-      DB_HOST: postgres
-      DB_NAME: rag_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_PORT: 5432
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
-      QDRANT_URL: http://qdrant:6333
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-    depends_on:
-      - postgres
-      - redis
-      - web
+      SITE_ADDRESS: ${SITE_ADDRESS}
     volumes:
-      - .:/app
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
 
 volumes:
   postgres_data:
   redis_data:
   qdrant_data:
+  caddy_data:
+  caddy_config:

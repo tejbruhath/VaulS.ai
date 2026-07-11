@@ -9,13 +9,13 @@ from django.conf import settings
 class VectorStore:
     """Manages vector embeddings in Qdrant."""
     
-    def __init__(self, collection_name: str = "documents", vector_size: int = 1536):
+    def __init__(self, collection_name: str = "documents", vector_size: int = 768):
         """
         Initialize vector store.
-        
+
         Args:
             collection_name: Name of Qdrant collection
-            vector_size: Dimension of embeddings (1536 for text-embedding-3-small)
+            vector_size: Dimension of embeddings (768 for models/text-embedding-004)
         """
         self.collection_name = collection_name
         self.vector_size = vector_size

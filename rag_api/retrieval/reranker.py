@@ -2,7 +2,7 @@
 import numpy as np
 import logging
 from typing import List, Tuple, Dict
-from sentence_transformers import CrossEncoderModel
+from sentence_transformers import CrossEncoder
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ class SemanticReranker:
     def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
         """Initialize re-ranker with pre-trained model."""
         try:
-            self.model = CrossEncoderModel(model_name)
+            self.model = CrossEncoder(model_name)
             logger.info(f"Loaded cross-encoder model: {model_name}")
         except Exception as e:
             logger.warning(f"Failed to load cross-encoder: {str(e)}, using fallback")

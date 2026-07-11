@@ -2,7 +2,7 @@
 import json
 import time
 from typing import Generator
-import openai
+import google.generativeai as genai
 from django.conf import settings
 from django.http import StreamingHttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
@@ -185,22 +185,24 @@ def query_stream(request):
 Question: {query}"""
             
             # Stream LLM response
-            client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-            
-            with client.messages.stream(
-                model=settings.LLM_MODEL,
-                max_tokens=1024,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-            ) as stream:
-                full_response = ""
-                for text in stream.text_stream:
-                    full_response += text
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel(
+                settings.LLM_MODEL,
+                system_instruction=system_prompt,
+            )
+
+            stream = model.generate_content(
+                user_message,
+                stream=True,
+                generation_config={"max_output_tokens": 1024},
+            )
+            full_response = ""
+            for chunk in stream:
+                if chunk.text:
+                    full_response += chunk.text
                     event_data = {
                         'type': 'response',
-                        'content': text,
+                        'content': chunk.text,
                     }
                     yield f"data: {json.dumps(event_data)}\n\n"
             

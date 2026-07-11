@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class QdrantCollectionManager:
     """Manage Qdrant collections with advanced features."""
     
-    def __init__(self, collection_name: str = "documents", vector_size: int = 1536):
+    def __init__(self, collection_name: str = "documents", vector_size: int = 768):
         self.collection_name = collection_name
         self.vector_size = vector_size
         self.client = QdrantClient(

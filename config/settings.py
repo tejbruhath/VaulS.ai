@@ -17,15 +17,22 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.auth',
     'rest_framework',
+    'corsheaders',
     'rag_api.core',
     'rag_api.api',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
 ]
+
+CORS_ALLOWED_ORIGIN_REGEXES = os.getenv(
+    'CORS_ALLOWED_ORIGIN_REGEXES',
+    r'^https://.*\.vercel\.app$,^http://localhost:\d+$',
+).split(',')
 
 ROOT_URLCONF = 'config.urls'
 
@@ -84,10 +91,10 @@ CELERY_TASK_SERIALIZER = 'json'
 QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
 QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', None)
 
-# OpenAI Configuration
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')
-LLM_MODEL = os.getenv('LLM_MODEL', 'gpt-4-turbo-preview')
+# Gemini Configuration
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'models/text-embedding-004')
+LLM_MODEL = os.getenv('LLM_MODEL', 'gemini-2.0-flash')
 
 # RAG Configuration
 CHUNK_SIZE = int(os.getenv('CHUNK_SIZE', '512'))
