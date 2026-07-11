@@ -1,5 +1,4 @@
 """URL configuration for RAG API."""
-from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rag_api.api.views import (
@@ -23,7 +22,6 @@ router.register(r'documents', DocumentViewSet, basename='document')
 router.register(r'chunks', ChunkViewSet, basename='chunk')
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/query/stream/', query_stream, name='query-stream'),
     path('api/query/citations/', query_with_citations, name='query-citations'),
