@@ -20,7 +20,7 @@ class HybridRetriever:
         from .index_manager import IndexManager
         
         self.index_manager = IndexManager()
-        self.bm25 = self.index_manager.get_bm25_index()
+        self.bm25 = self.index_manager.get_bm25_index() or BM25Manager()
         self.vector_store = self.index_manager.get_vector_store()
         self.embedding_service = EmbeddingService()
         self.reranker = SemanticReranker()
