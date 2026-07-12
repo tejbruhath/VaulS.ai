@@ -94,7 +94,7 @@ QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', None)
 # Gemini Configuration
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'models/gemini-embedding-001')
-LLM_MODEL = os.getenv('LLM_MODEL', 'gemini-2.0-flash')
+LLM_MODEL = os.getenv('LLM_MODEL', 'gemini-flash-latest')
 
 # RAG Configuration
 CHUNK_SIZE = int(os.getenv('CHUNK_SIZE', '512'))
